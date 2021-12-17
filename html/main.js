@@ -161,7 +161,7 @@ function radioEvent() {
 
 // Draw signal level
 function signalLevel (level, size) {
-	var element = document.getElementById( "signal-panel" ) ;
+	var element = document.getElementById( "signal-canvas" ) ;
 	var context = element.getContext( "2d" ) ;
 
 
