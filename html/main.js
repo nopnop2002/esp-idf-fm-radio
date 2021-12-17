@@ -18,7 +18,7 @@ function sendId(name) {
 
 function addPreset(name) {
 	console.log('addPreset');
-	// Get current vakue from segment
+	// Get current value from segment
 	var text = String(segment.Value);
 	console.log("text=", text);
 	sendIdValue(name, text);

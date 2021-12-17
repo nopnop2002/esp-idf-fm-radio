@@ -720,9 +720,9 @@ void app_main() {
 					char* end;
 					double request_freq = strtod(value, &end);
 					if (errno == ERANGE) {
-						ESP_LOGE(TAG, "syetem-request strtod error");
+						ESP_LOGE(TAG, "preset-request strtod error");
 					} else if (value == end) {
-						ESP_LOGW(TAG, "syetem-request can't convert");
+						ESP_LOGW(TAG, "preset-request can't convert");
 					} else {
 						int16_t int_freq = request_freq * 10;
 						ESP_LOGI(TAG, "request_freq=%f int_freq=%d", request_freq, int_freq);
@@ -759,9 +759,9 @@ void app_main() {
 					char* end;
 					double request_freq = strtod(value, &end);
 					if (errno == ERANGE) {
-						ESP_LOGE(TAG, "syetem-request strtod error");
+						ESP_LOGE(TAG, "write-request strtod error");
 					} else if (value == end) {
-						ESP_LOGW(TAG, "syetem-request can't convert");
+						ESP_LOGW(TAG, "write-request can't convert");
 					} else {
 						ESP_LOGI(TAG, "request_freq=%f", request_freq);
 						int16_t int_freq = request_freq * 10;
