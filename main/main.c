@@ -22,6 +22,7 @@
 #include "nvs.h"
 #include "cJSON.h"
 #include "mdns.h"
+#include "lwip/dns.h"
 
 #include "websocket_server.h"
 #include "tea5767.h"
@@ -38,7 +39,7 @@ static EventGroupHandle_t s_wifi_event_group;
  * - we are connected to the AP with an IP
  * - we failed to connect after the maximum amount of retries */
 #define WIFI_CONNECTED_BIT BIT0
-#define WIFI_FAIL_BIT			 BIT1
+#define WIFI_FAIL_BIT BIT1
 
 static char *TAG = "main";
 static char *PRESET_FREQ = "preset_freq";
@@ -74,9 +75,44 @@ void wifi_init_sta(void)
 	s_wifi_event_group = xEventGroupCreate();
 
 	ESP_ERROR_CHECK(esp_netif_init());
-
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
-	esp_netif_create_default_wifi_sta();
+	esp_netif_t *netif = esp_netif_create_default_wifi_sta();
+	assert(netif);
+
+#if CONFIG_STATIC_IP
+
+	ESP_LOGI(TAG, "CONFIG_STATIC_IP_ADDRESS=[%s]",CONFIG_STATIC_IP_ADDRESS);
+	ESP_LOGI(TAG, "CONFIG_STATIC_GW_ADDRESS=[%s]",CONFIG_STATIC_GW_ADDRESS);
+	ESP_LOGI(TAG, "CONFIG_STATIC_NM_ADDRESS=[%s]",CONFIG_STATIC_NM_ADDRESS);
+
+	/* Stop DHCP client */
+	ESP_ERROR_CHECK(esp_netif_dhcpc_stop(netif));
+	ESP_LOGI(TAG, "Stop DHCP Services");
+
+	/* Set STATIC IP Address */
+	esp_netif_ip_info_t ip_info;
+	memset(&ip_info, 0 , sizeof(esp_netif_ip_info_t));
+	ip_info.ip.addr = ipaddr_addr(CONFIG_STATIC_IP_ADDRESS);
+	ip_info.netmask.addr = ipaddr_addr(CONFIG_STATIC_NM_ADDRESS);
+	ip_info.gw.addr = ipaddr_addr(CONFIG_STATIC_GW_ADDRESS);;
+	esp_netif_set_ip_info(netif, &ip_info);
+
+	/*
+	I referred from here.
+	https://www.esp32.com/viewtopic.php?t=5380
+	if we should not be using DHCP (for example we are using static IP addresses),
+	then we need to instruct the ESP32 of the locations of the DNS servers manually.
+	Google publicly makes available two name servers with the addresses of 8.8.8.8 and 8.8.4.4.
+	*/
+
+	ip_addr_t d;
+	d.type = IPADDR_TYPE_V4;
+	d.u_addr.ip4.addr = 0x08080808; //8.8.8.8 dns
+	dns_setserver(0, &d);
+	d.u_addr.ip4.addr = 0x08080404; //8.8.4.4 dns
+	dns_setserver(1, &d);
+
+#endif // CONFIG_STATIC_IP
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -84,15 +120,15 @@ void wifi_init_sta(void)
 	esp_event_handler_instance_t instance_any_id;
 	esp_event_handler_instance_t instance_got_ip;
 	ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-																											ESP_EVENT_ANY_ID,
-																											&event_handler,
-																											NULL,
-																											&instance_any_id));
+									ESP_EVENT_ANY_ID,
+									&event_handler,
+									NULL,
+									&instance_any_id));
 	ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
-																											IP_EVENT_STA_GOT_IP,
-																											&event_handler,
-																											NULL,
-																											&instance_got_ip));
+									IP_EVENT_STA_GOT_IP,
+									&event_handler,
+									NULL,
+									&instance_got_ip));
 
 	wifi_config_t wifi_config = {
 		.sta = {
@@ -101,7 +137,7 @@ void wifi_init_sta(void)
 			/* Setting a password implies station will connect to all security modes including WEP/WPA.
 			 * However these modes are deprecated and not advisable to be used. Incase your Access point
 			 * doesn't support WPA2, these mode can be enabled by commenting below line */
-			 .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+			.threshold.authmode = WIFI_AUTH_WPA2_PSK,
 
 			.pmf_cfg = {
 				.capable = true,
@@ -126,11 +162,9 @@ void wifi_init_sta(void)
 	/* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
 	 * happened. */
 	if (bits & WIFI_CONNECTED_BIT) {
-		ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
-						 CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
+		ESP_LOGI(TAG, "connected to ap SSID:%s password:%s", CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
 	} else if (bits & WIFI_FAIL_BIT) {
-		ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
-						 CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
+		ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s", CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
 	} else {
 		ESP_LOGE(TAG, "UNEXPECTED EVENT");
 	}
@@ -596,10 +630,13 @@ void app_main() {
 	configASSERT( xMessageBufferMain );
 
 	// Get the local IP address
-	tcpip_adapter_ip_info_t ip_info;
-	ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+	//tcpip_adapter_ip_info_t ip_info;
+	//ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+	esp_netif_ip_info_t ip_info;
+	ESP_ERROR_CHECK(esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), &ip_info));
 	char cparam0[64];
-	sprintf(cparam0, "%s", ip4addr_ntoa(&ip_info.ip));
+	//sprintf(cparam0, "%s", ip4addr_ntoa(&ip_info.ip));
+	sprintf(cparam0, IPSTR, IP2STR(&ip_info.ip));
 
 	// Create Task
 	ws_server_start();
@@ -651,7 +688,7 @@ void app_main() {
 				current_freq = floor (radio_frequency_available (&ctrl_data, radio_status) / 100000 + .5) / 10;
 				int stereo = radio_stereo(&ctrl_data, radio_status);
 				int signal_level = radio_signal_level(&ctrl_data, radio_status);
-				ESP_LOGI(TAG, "current_freq=%f stereo=%d signal_level=%d/15", current_freq, stereo, signal_level);
+				ESP_LOGD(TAG, "current_freq=%f stereo=%d signal_level=%d/15", current_freq, stereo, signal_level);
 
 				sprintf(outBuffer,"STATUS%c%f%c%d%c%d", DEL, current_freq, DEL, stereo, DEL, signal_level);
 				ESP_LOGD(TAG, "outBuffer=[%s]", outBuffer);
@@ -696,6 +733,14 @@ void app_main() {
 						ESP_LOGD(TAG, "outBuffer=[%s]", outBuffer);
 						ws_server_send_text_all(outBuffer,strlen(outBuffer));
 					}
+
+					ESP_LOGI(TAG, "presetFrequence=%d", presetFrequence);
+					if (presetFrequence != 0) {
+						sprintf(outBuffer,"PRESET%c%.1f", DEL,  presetFrequence/10.0);
+						ESP_LOGD(TAG, "outBuffer=[%s]", outBuffer);
+						ws_server_send_text_all(outBuffer,strlen(outBuffer));
+					}
+
 				}
 
 				if ( strcmp (id, "searchup-request") == 0) {
