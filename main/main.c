@@ -6,9 +6,10 @@
 	 CONDITIONS OF ANY KIND, either express or implied.
 */
 
-#include "stdio.h"
-#include "math.h"
-#include "string.h"
+#include <stdio.h>
+#include <inttypes.h>
+#include <math.h>
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -219,10 +220,10 @@ void websocket_callback(uint8_t num,WEBSOCKET_TYPE_t type,char* msg,uint64_t len
 			}
 			break;
 		case WEBSOCKET_BIN:
-			ESP_LOGI(TAG,"client %i sent binary message of size %i:\n%s",num,(uint32_t)len,msg);
+			ESP_LOGI(TAG,"client %i sent binary message of size %"PRIu32":\n%s",num,(uint32_t)len,msg);
 			break;
 		case WEBSOCKET_PING:
-			ESP_LOGI(TAG,"client %i pinged us with message of size %i:\n%s",num,(uint32_t)len,msg);
+			ESP_LOGI(TAG,"client %i pinged us with message of size %"PRIu32":\n%s",num,(uint32_t)len,msg);
 			break;
 		case WEBSOCKET_PONG:
 			ESP_LOGI(TAG,"client %i responded to the ping",num);
@@ -231,7 +232,7 @@ void websocket_callback(uint8_t num,WEBSOCKET_TYPE_t type,char* msg,uint64_t len
 }
 
 // serves any clients
-static void http_serve(struct netconn *conn) {
+static void http_server(struct netconn *conn) {
 	const static char* TAG = "http_server";
 	const static char HTML_HEADER[] = "HTTP/1.1 200 OK\nContent-type: text/html\n\n";
 	const static char ERROR_HEADER[] = "HTTP/1.1 404 Not Found\nContent-type: text/html\n\n";
@@ -291,7 +292,7 @@ static void http_serve(struct netconn *conn) {
 
 			ESP_LOGD(TAG, "buf=[%s]", buf);
 			// default page
-			if		 (strstr(buf,"GET / ")
+			if (strstr(buf,"GET / ")
 					&& !strstr(buf,"Upgrade: websocket")) {
 				ESP_LOGI(TAG,"Sending /");
 				netconn_write(conn, HTML_HEADER, sizeof(HTML_HEADER)-1,NETCONN_NOCOPY);
@@ -408,7 +409,7 @@ static void server_task(void* pvParameters) {
 		ESP_LOGI(TAG,"new client");
 		if(err == ERR_OK) {
 			xQueueSendToBack(client_queue,&newconn,portMAX_DELAY);
-			//http_serve(newconn);
+			//http_server(newconn);
 		}
 	} while(err == ERR_OK);
 	netconn_close(conn);
@@ -425,7 +426,7 @@ static void server_handle_task(void* pvParameters) {
 	for(;;) {
 		xQueueReceive(client_queue,&conn,portMAX_DELAY);
 		if(!conn) continue;
-		http_serve(conn);
+		http_server(conn);
 	}
 	vTaskDelete(NULL);
 }

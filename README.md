@@ -10,6 +10,11 @@ It's a great job.
 
 I used [this](https://github.com/CodeDrome/seven-segment-display-javascript) for segment display.   
 
+# Software requiment
+ESP-IDF V4.4/V5.x.   
+ESP-IDF V5.0 is required when using ESP32-C2.   
+ESP-IDF V5.1 is required when using ESP32-C6.   
+
 # Hardware requirements   
 TEA5767 FM Stereo Radio Module.   
 I bought this on AliExpress about $4.   
@@ -29,7 +34,7 @@ I used an AC power cable.
 git clone https://github.com/nopnop2002/esp-idf-fm-radio
 cd esp-idf-fm-radio
 git clone https://github.com/Molorius/esp32-websocket components/websocket
-idf.py set-target {esp32/esp32s2/esp32s3/esp32c3}
+idf.py set-target {esp32/esp32s2/esp32s3/esp32c2/esp32c3/esp32c6}
 idf.py menuconfig
 idf.py flash
 ```
@@ -72,10 +77,10 @@ You can use the MDNS hostname instead of the IP address.
 
 # Wireing
 
-|TEA5767||ESP32|ESP32-S2/S3|ESP32-C3||
+|TEA5767||ESP32|ESP32-S2/S3|ESP32-C2/C3/C6||
 |:-:|:-:|:-:|:-:|:-:|:-:|
-|SCL|--|GPIO22|GPIO4|GPIO19|(*1)|
-|SDA|--|GPIO21|GPIO3|GPIO18|(*1)|
+|SCL|--|GPIO22|GPIO12|GPIO5|(*1)|
+|SDA|--|GPIO21|GPIO11|GPIO4|(*1)|
 |GND|--|GND|GND|GND||
 |VCC|--|3.3V|3.3V|3.3V|(*2)|
 
