@@ -55,11 +55,6 @@ You can use Static IP.
 You can use the MDNS hostname instead of the IP address.   
 ![config-wifi-3](https://user-images.githubusercontent.com/6020549/146466214-1a076345-7f39-4a13-b472-27eeeff3485c.jpg)
 
-- esp-idf V4.3 or earlier   
- You will need to manually change the mDNS strict mode according to [this](https://github.com/espressif/esp-idf/issues/6190) instruction.   
-- esp-idf V4.4 or later  
- If you set CONFIG_MDNS_STRICT_MODE = y in sdkconfig.default, the firmware will be built with MDNS_STRICT_MODE = 1.
-
 
 ## TEA5767 Setting
 
